@@ -1,0 +1,1091 @@
+#Include "PROTHEUS.CH"
+#Include "RWMAKE.CH"
+
+/*
+AUTOR	: ANDERSON BIALE
+DATA	: 25/07/12
+DESC	: TELA PARA VALIDACAO NA SEPARACAO DO PEDIDO DE VENDAS.
+*/
+USER FUNCTION ALPA101() //U_ALPA101()
+    
+	Private oFontCab   := TFont():New("MS Sans Serif",,018,, .T. ,,,,, .F. , .F. )
+	Private oFontItens := TFont():New("MS Sans Serif",,016,, .T. ,,,,, .F. , .F. )
+	Private oDlg
+	Private oPanel1
+	Private oLblProd
+	Private oCodProd
+	Private cCodProd   := ""
+	Private oLblDescProd
+	Private cDescProd  := ""
+	Private oLblLote
+	Private oLote
+	Private cLote      := ""
+	Private oLblSerie
+	Private oSerie
+	Private cSERIAL     := ""
+	Private oBtnFechar
+	Private oBtnLimpar
+	Private oBtnOK
+	Private oLblLerProdSer
+	Private oPanel2
+	Private oGravProdLoteSerie
+	Private oLstProd
+	Private aLstProd   := Array( 1, 5 )
+	Private aTamCamp   := {}
+	Private lRetProd   := .F.
+	Private lRetLote   := .F.
+	Private lRETSERIAL := .F.
+	Private lAltProds  := .F.
+	PRIVATE cARMTRA	   := ""				//ARMAZEM DE TRANSFERENCIA
+	PRIVATE cENDTRA	   := ""				//ENDERECO DE TRANSFERENCIA		
+	Private cPERG	   := "ALPA101"			//PARAMETROS
+	PRIVATE	cCODBAR	   	:= "" 				//CODIGO BARRAS DE CONTROLE
+	PRIVATE cPEDIDO		:= ""     			//NUM PEDIDO 
+	PRIVATE cNUM		:= ""				//NUM PEDIDO INDICIDUAL
+	PRIVATE cCLIENTE 	:= ""				//CLIENTE
+	PRIVATE cLOJA		:= ""				//LOJA
+	PRIVATE cITEM		:= ""     			//ITEM
+	PRIVATE cPRODUTO	:= ""     			//COD PRODUTO
+	PRIVATE cPRODESC 	:= ""				//DESC PRODUTO
+	PRIVATE nQUANT	   	:= 0				//QUANTIDADE
+	PRIVATE nSOMA		:= 0				//SOMAR QTDE DO ITEM NO ARRAY 
+	PRIVATE nCAIXA		:= 1				//CAIXAS PARA SEPARACAO
+	PRIVATE aTOTAL	  	:= {}				//ARRAY PARA ARMAZENAR O TOTAL DE ITENS ADICIONADOS
+	PRIVATE cIDENT		:= ""				//IDENTIFICADOR DE CAIXAS
+	PRIVATE nQtdCx		:= 0				//IDENTIFICADOR DE CAIXAS	
+	
+	//CRIANDO PARAMETROS
+	CRIASX1()
+	WHILE PERGUNTE(cPERG) 		//CHAMA PERGUNTAS
+		nCAIXA	:= 1
+		aTOTAL	:= {}
+		U_START()
+	ENDDO						//FIM  
+
+RETURN
+	
+User FUNCTION START() 	
+	
+	//VALIDACAO SE SEPARACAO JA FOI REALAIZADA -------------------------------------------
+	DBSELECTAREA("ZBC")												//SEPARACAO X CAIXA
+	DBORDERNICKNAME("SEPARACAO")									//SEPARACAO + CAIXA
+	IF DBSEEK(xFILIAL("ZBC")+ALLTRIM(MV_PAR01))						//SE JA SEPARADO
+	  If alltrim(cModulo) <> 'FAT'
+		MSGALERT("SEPARAÇÃO JÁ REALIZADA!","ALPA101.PRW LINE:65")	//ALERTA
+		RETURN														//FIM DA FUNCAO	
+	  Endif
+	ENDIF                                                        	//FIM ----------------	
+             
+    DBSELECTAREA("SC9")
+    SC9->(DBORDERNICKNAME("C9_CODBAR"))
+    
+    // Customização em 02/05/2016 por Fagner / Biale 
+    lGrEmb := .f.
+    IF SC9->(DBSEEK(xFILIAL("SC9")+ALLTRIM(MV_PAR01)))
+    	WHILE SC9->(!EOF()) .and. SC9->C9_CODBAR == ALLTRIM(MV_PAR01)    
+    		If cModulo <> 'FAT'
+    	      If EMPTY(SC9->C9_AXDTEMB) .OR. EMPTY(SC9->C9_AXHREMB) .OR. EMPTY(SC9->C9_AXUSEMB) 
+    	      	RECLOCK("SC9",.F.)      
+    	      		SC9->C9_AXDTEMB := DDATABASE
+    	      		SC9->C9_AXHREMB := Transform(Time(),"99:99:99")
+    	      		SC9->C9_AXUSEMB := Alltrim(cUserName)
+    	       	 lGrEmb := .T.
+    	       	SC9->(MSUNLOCK())
+    	      Endif
+    	    Else
+    	      If (EMPTY(SC9->C9_AXDTFAT) .OR. EMPTY(SC9->C9_AXHRFAT) .OR. EMPTY(SC9->C9_AXUSFAT)) .and.;
+    	         ( !EMPTY(SC9->C9_AXDTEMB) .OR. !EMPTY(SC9->C9_AXHREMB) .OR. !EMPTY(SC9->C9_AXUSEMB))
+    	      	RECLOCK("SC9",.F.)      
+    	      		SC9->C9_AXDTFAT := DDATABASE
+    	      		SC9->C9_AXHRFAT := Transform(Time(),"99:99:99")
+    	      		SC9->C9_AXUSFAT := Alltrim(cUserName)
+    	       	 lGrEmb := .T.
+    	       	SC9->(MSUNLOCK())
+    	      Endif    	    
+    	    Endif
+    		SC9->(DBSKIP())
+        Enddo
+    Endif    
+    
+    If lGrEmb 
+    	If alltrim(cModulo) <> 'FAT'
+	        MsgInfo("Entrada no setor de embalagem confirmada !","ALPA101 - Confirmação de Embalagem")
+	    Else
+   	        MsgInfo("Entrada no Faturamento confirmada !","ALPA101 - Confirmação de Entrega no Faturamento")
+   	 	Endif
+        Return
+    Endif                                                                                       
+    
+    If alltrim(cModulo) == 'FAT'
+    	Return
+    Endif
+    
+    // Final 
+    IF SC9->(DBSEEK(xFILIAL("SC9")+ALLTRIM(MV_PAR01)))
+     	cCODBAR 	:= SC9->C9_CODBAR       	//RECEBE CODBAR		
+     	cCLIENTE	:= SC9->C9_CLIENTE      	//CLIENTE
+     	cLOJA		:= SC9->C9_LOJA	        	//LOJA    
+    	cNUM		:= ALLTRIM(SC9->C9_PEDIDO)  //NUM DO PEDIDO	         	
+     	
+     	WHILE SC9->(!EOF())
+	     	IF ALLTRIM(UPPER(SC9->C9_CODBAR)) == ALLTRIM(UPPER(cCODBAR))
+	     	 	IF ALLTRIM(SC9->C9_PEDIDO) $ cPEDIDO
+	     	 		//FAZ NADA 
+	     	 	ELSE			
+					cPEDIDO		+= "'"+ALLTRIM(SC9->C9_PEDIDO)+"'"+","	//NUM DO PEDIDO
+				ENDIF
+			ELSE
+				EXIT
+			ENDIF	
+			SC9->(DBSKIP())
+		ENDDO	    
+    ELSE
+    	MSGALERT("SEPARAÇÃO NÃO ENCONTRADA!","ALPA101.PRW LINE:76")
+    	RETURN
+    ENDIF
+    
+    //IDENTIFICADOR CAIXA X DANFE
+    
+    //cIDENT := STRZERO(GETMV("AD_IDENT")+1,9)	//IDENTIFICADOR DA CAIXA
+	//PUTMV("AD_IDENT",cIDENT)    
+
+	cUPD:=" UPDATE "+RETSQLNAME("SC9")+" SET C9_IDENT = '"+ALLTRIM(cCODBAR)+"'"	+CRLF                                          
+	cUPD+=" FROM "+RETSQLNAME("SC9")+" "                      		+CRLF
+	cUPD+=" WHERE "+RETSQLNAME("SC9")+".D_E_L_E_T_ = '' " 		+CRLF      	
+	cUPD+=" 	AND C9_FILIAL = '"+xFILIAL("SC9")+"' "     	+CRLF
+	cUPD+="		AND C9_CODBAR = '"+ALLTRIM(cCODBAR)+"' "    	+CRLF    
+	  
+	IF MV_PAR02 = 1
+		cUPD+="		AND C9_BLEST    IN ('10') "    	+CRLF  
+		cUPD+="		AND C9_BLCRED   IN ('10') "    	+CRLF    
+	ELSE
+		cUPD+="		AND C9_BLEST   NOT IN ('02','03','10') "    	        +CRLF  
+		cUPD+="		AND C9_BLCRED  NOT IN ('01','04','05','09','10') "    	+CRLF
+	ENDIF
+	MemoWrite("\query\updsc9.sql",cUPD)
+
+	TCSQLEXEC(cUPD)	
+
+	IniCampo()
+
+	DEFINE MSDIALOG oDlg TITLE "Separação de Pedido" FROM 000,000 TO 320,900 COLORS 0,16777215 PIXEL
+		@ 003,003 SAY "Separação" 		SIZE 115,010 OF oDlg FONT oFontCab COLORS CLR_BLACK PIXEL
+		@ 003,050 SAY ALLTRIM(cCODBAR) 	SIZE 115,010 OF oDlg FONT oFontCab COLORS CLR_BLACK PIXEL
+		@ 022,003 SAY "Caixa"			SIZE 115,010 OF oDlg FONT oFontCab COLORS CLR_BLACK PIXEL
+		@ 022,050 SAY STRZERO(nCAIXA,3)	SIZE 115,010 OF oDlg FONT oFontCab COLORS CLR_BLACK PIXEL
+		@ 042,002 SAY "Produto"                       SIZE 027,007 OF oDlg FONT oFontItens COLORS CLR_BLACK PIXEL
+		@ 041,040 MSGET oCodProd VAR cCodProd SIZE 085,010 OF oDlg VALID ValProd() COLORS CLR_BLACK PIXEL
+		@ 055,040 SAY oLblDescProd PROMPT cDescProd SIZE 085,007 OF oDlg FONT oFontItens COLORS CLR_BLACK PIXEL
+		@ 072,002 SAY "Lote"                        SIZE 025,007 OF oDlg FONT oFontItens COLORS CLR_BLACK PIXEL
+		@ 071,040 MSGET oLote VAR cLote               SIZE 085,010 OF oDlg VALID ValLote() COLORS CLR_BLACK PIXEL
+		@ 092,002 SAY "Serial"                        SIZE 025,007 OF oDlg FONT oFontItens COLORS CLR_BLACK PIXEL
+		@ 091,040 MSGET oSerie VAR cSERIAL             SIZE 085,010 OF oDlg VALID ValSerie() COLORS CLR_BLACK PIXEL
+		@ 115,005 BUTTON oBtnOK PROMPT "&Ok"          SIZE 037,012 OF oDlg ACTION ( INCCAIXA() , oCodProd:SetFocus() ) PIXEL
+		@ 115,050 BUTTON oBtnLimpar PROMPT "&Limpar"  SIZE 037,012 OF oDlg ACTION LimpCampo() PIXEL
+		@ 115,095 BUTTON oBtnFechar PROMPT "&Fechar"  SIZE 037,012 OF oDlg ACTION FechaTela() PIXEL
+		@ 003,148 SAY "Itens validados" SIZE 124,010 OF oDlg FONT oFontCab COLORS CLR_BLACK PIXEL
+		@ 012,141 LISTBOX oLstProd Fields HEADER "Produto","Desc","Qtd","Lote","Serial" SIZE 300,129 OF oDlg PIXEL
+			oLstProd:SetArray( aLstProd )
+			oLstProd:bLine := { || { aLstProd[oLstProd:nAt,1], aLstProd[oLstProd:nAt,2], aLstProd[oLstProd:nAt,3], aLstProd[oLstProd:nAt,4], aLstProd[oLstProd:nAt,5] } }
+		@ 145,148 SAY "Total de Itens: " + cValtochar(nQtdCx)   SIZE 100,015 OF oDlg FONT oFontItens COLORS CLR_BLACK PIXEL
+
+		
+	ACTIVATE MSDIALOG oDlg CENTERED
+
+RETURN
+
+*********************************************************************************************************************************************************************
+STATIC FUNCTION FechaTela()
+
+//DELETANDO SEPARACAO CANCELADA NO BOTAO FECHAR -----------------
+cUPD:=" UPDATE "+RETSQLNAME("ZBC")+" SET D_E_L_E_T_ = '*' "	+CRLF  
+cUPD+=" FROM "+RETSQLNAME("ZBC")+" "                      	+CRLF
+cUPD+=" WHERE "+RETSQLNAME("ZBC")+".D_E_L_E_T_ = '' " 		+CRLF      	
+cUPD+=" 	AND ZBC_FILIAL = '"+xFILIAL("ZBC")+"' "     	+CRLF
+cUPD+="		AND ZBC_CODSEP = '"+ALLTRIM(cCODBAR)+"' "    	+CRLF
+TCSQLEXEC(cUPD)	
+
+oDlg:End()	
+RETURN
+
+*********************************************************************************************************************************************************************
+STATIC FUNCTION IniCampo() 
+
+	aTamCampo := TamSX3("B1_COD")
+	cCodProd  := Space( aTamCampo[1]+30 )
+
+	aTamCampo := TamSx3("B1_DESC")
+	cDescProd := Space( aTamCampo[1] )
+
+	aTamCampo := TamSX3("C9_LOTECTL")
+	cLote     := Space( aTamCampo[1]+30 )
+
+	cSERIAL   := Space( 60 )
+
+RETURN
+
+*********************************************************************************************************************************************************************
+STATIC FUNCTION LimpCampo()
+
+	IniCampo()
+
+	oCodProd:Enable()
+	oCodProd:Refresh()
+	oCodProd:SetFocus()
+
+	oLote:Enable()
+	oLote:Refresh()
+
+	oSerie:Enable()
+	oLote:Refresh()
+
+	oLblDescProd:Refresh()
+
+RETURN
+
+
+*********************************************************************************************************************************************************************
+STATIC FUNCTION INCCAIXA()	//TELA PARA INCLUSAO DE CAIXA NA SEPARACAO
+
+PRIVATE oCX
+PRIVATE oLOCAL
+PRIVATE _cLOCAL
+PRIVATE oPESO
+PRIVATE nPESO
+
+
+//TAMNAHO DO CAMPO LOCAL A SER ARMAZENADO
+aTAMCAMPO 	:= TAMSX3("C9_CXEND")
+_cLOCAL  	:= SPACE( aTAMCAMPO[1] )
+
+aTAMCAMPO 	:= TAMSX3("ZBC_PESO")
+nPESO  		:= 0
+
+
+	DEFINE MSDIALOG oCX TITLE "LOCAL DE ARMAZENAMENTO!" FROM 000,000 TO 300,300 COLORS 0,16777215 PIXEL
+		@ 003,003 SAY "SEPARAÇÃO" 		SIZE 115,010 OF oCX FONT oFontCab COLORS CLR_BLACK PIXEL
+		@ 003,050 SAY cCODBAR 			SIZE 115,010 OF oCX FONT oFontCab COLORS CLR_BLACK PIXEL
+		
+		@ 022,003 SAY "CAIXA"			SIZE 115,010 OF oCX FONT oFontCab COLORS CLR_BLACK PIXEL
+		@ 022,050 SAY STRZERO(nCAIXA,3)	SIZE 115,010 OF oCX FONT oFontCab COLORS CLR_BLACK PIXEL
+		
+		@ 042,002 SAY "LOCAL"              	SIZE 025,007 OF oCX FONT oFontItens COLORS CLR_BLACK PIXEL
+		@ 041,050 MSGET oLOCAL VAR _cLOCAL 	SIZE 085,010 OF oCX VALID ValProd() COLORS CLR_BLACK PIXEL
+		
+		@ 062,002 SAY "PESO"              											SIZE 025,007 OF oCX FONT oFontItens COLORS CLR_BLACK PIXEL
+		@ 061,050 MSGET oPESO VAR nPESO PICTURE "@E 999,999.9999" SIZE 085,010 FONT oFontItens COLORS CLR_BLACK PIXEL OF oPESO 
+		
+	
+		
+		@ 115,005 BUTTON oBtnOK PROMPT "&Ok"          SIZE 037,012 OF oCX ACTION CXOK() PIXEL
+		@ 115,050 BUTTON oBtnFechar PROMPT "&Fechar"  SIZE 037,012 OF oCX ACTION oCX:END() PIXEL
+	ACTIVATE MSDIALOG oCX CENTERED
+    
+
+RETURN
+
+STATIC FUNCTION CXOK()	//FUNCAO OK DA TELA DE INCLUSAO DA CAIXA
+
+LOCAL nSUMLIS	  := 0		//SOMA DA LISTA
+LOCAL lRET		  := .T.
+Local aProOnu	  := {}
+Local X := 1
+
+//MSGALERT("BOTAO OK","ALPA101.PRW LINE:273")
+    
+//ARMAZENANDO O TOTAL DE ITENS ADICIONADOS EM OUTRO ARRAY --------------------------------------------
+FOR X:=1 TO LEN(aLstProd)
+	AADD(aTOTAL,{ aLstProd[X,1] , aLstProd[X,2] , aLstProd[X,3] , aLstProd[X,4] , aLstProd[X,5] })
+NEXT X
+    
+//VALIDACAO VERIFICAR SE TODOS OS ITENS DA SEPARACAO FORAM ADICIONADOS NA TELA -----------------------------------------------------------------
+lAltProds := .F.
+IF LEN(aTOTAL) > 0
+			
+//SOMA QUANTIDADE DA LISTA ---------------------------------------------------------------
+FOR X:=1 TO LEN(aTOTAL)
+	nSUMLIS += VAL(aTOTAL[X,3])							                
+NEXT X
+			
+//SOMA QUANTIDADE DA SEPARACAO ------------------------------------------------------------------------
+cQRY:=" SELECT SUM(C9_QTDLIB) SOMA "+CRLF
+cQRY+=" FROM "+RETSQLNAME("SC9")+" AS C9 (NOLOCK) "+CRLF
+cQRY+=" WHERE C9.D_E_L_E_T_ = '' AND C9_FILIAL = '"+xFILIAL("SC9")+"' "+CRLF 
+cQRY+="	AND C9_CODBAR = '"+ALLTRIM(cCODBAR)+"' "+CRLF
+IF MV_PAR02 = 1
+	cQry+=" AND C9_BLEST  IN ('10')"+CRLF
+	cQry+=" AND C9_BLCRED IN ('10')"+CRLF
+ELSE
+	cQry+=" AND C9_BLEST  NOT IN ('02','03','10')"+CRLF
+	cQry+=" AND C9_BLCRED NOT IN ('01','04','05','09','10')"+CRLF
+ENDIF
+MemoWrite("\query\alfa101.sql",cQry)
+
+IF SELECT("SOM") > 0                                            	//SE ALIAS ABERTO
+	DBSELECTAREA("SOM")                                           	//SELECIONA ALIAS
+	SOM->(DBCLOSEAREA())                                          	//FECHA
+ENDIF                                                              	//FIM         
+DBUSEAREA(.T.,"TOPCONN",TCGENQRY(,,cQRY),"SOM",.F.,.F.)			//ABRINDO ALIAS SOM ---------------
+SOM->(DBGOTOP())
+IF SOM->SOMA <> 0													//SE RETORNOU SOMA
+	IF SOM->SOMA <> nSUMLIS                                  		//SE SOMA SEPARACAO <> SOMA LISTA
+		lRET := .F.
+		MSGALERT("FALTAM "+cVALTOCHAR(SOM->SOMA-nSUMLIS)+" ITENS NESSA CONFERÊNCIA!","ALPA101.PRW LINE:232")
+		oCodProd:SETFOCUS()											//POSICIONA NO CAMPO PRODUTO
+	ELSE
+   		MSGALERT("SEPARAÇÃO FINALIZADA!","ALPA101.PRW LINE:234")
+   		oDlg:End()		
+	ENDIF 
+ENDIF
+	 	
+IF SELECT("SOM") > 0                                            	//SE ALIAS ABERTO
+	DBSELECTAREA("SOM")                                           	//SELECIONA ALIAS
+		SOM->(DBCLOSEAREA())                                          	//FECHA
+	ENDIF                                                              	//FIM  
+ELSE
+	lRET := .F.
+	MSGALERT("NÃO FOI INCLUÍDO NENHUM PRODUTO PARA CONFERÊNCIA!","ALPA101.PRW LINE:245")		   
+ENDIF
+
+DBSELECTAREA("ZBC")									   			//CAIXA X SEPARACAO
+DBORDERNICKNAME("SEPARACAO")									//FILIAL + SEPARACAO + CAIXA
+IF DBSEEK(xFILIAL("ZBC")+ALLTRIM(cCODBAR)+cVALTOCHAR(nCAIXA))	//SE JA SEPARADO
+	MSGALERT("SEPARAÇÃO JÁ REALIZADA!","ALPA101.PRW LINE:251")	//ALERTA 
+	oCX:END()      
+ELSE															//SE NAO GRAVA TABELA AUXILIAR                                                          
+	FOR X:=1 TO LEN(aLSTPROD)									//
+		RECLOCK("ZBC",.T.)	                               			//
+			ZBC->ZBC_FILIAL	:= xFILIAL("ZBC")            			//
+			ZBC->ZBC_CODSEP	:= ALLTRIM(cCODBAR)            			//
+			ZBC->ZBC_CODPED	:= ALLTRIM(cNUM)            			//  ALTERADO OCIMAR DE cPEDIDO PARA cNUM  06/02/2013
+			ZBC->ZBC_CODPRO	:= ALLTRIM(aLSTPROD[X,1])     			//
+			ZBC->ZBC_QUANT 	:= VAL(aLSTPROD[X,3])         			//
+			ZBC->ZBC_LOTE  	:= ALLTRIM(aLSTPROD[X,4])      			//
+			ZBC->ZBC_SERIAL	:= ALLTRIM(aLSTPROD[X,5])     	   		//
+			ZBC->ZBC_CAIXA 	:= nCAIXA								//
+			ZBC->ZBC_LOCAL 	:= ALLTRIM(_cLOCAL)            			//
+			ZBC->ZBC_PESO	:= nPESO
+			ZBC->ZBC_STATUS	:= "1"									//1=SEPARADO
+		ZBC->(MSUNLOCK())                                			//
+	NEXT X
+	ETIONU(@aProOnu) //PROJECT TI - NOVA ETIQUETA ONU - 03/2019
+	ETICAI(aProOnu)
+	nCAIXA++
+
+// #Inicio -> Henrique Caetano/Geraldo Sabino - Totalit - 02/03/2020 Ajuste para voltar o foco nos campos "Produto", "Lote" e "Serial", nas separações com mais de 1 caixa.
+ 	
+	@ 042,002 SAY "Produto"                       SIZE 025,007 OF oDlg FONT oFontItens COLORS CLR_BLACK PIXEL
+	@ 041,040 MSGET oCodProd VAR cCodProd SIZE 085,010 OF oDlg VALID ValProd() COLORS CLR_BLACK PIXEL
+	oCodProd:SETFOCUS()		//POSICIONA NO CAMPO PRODUTO
+	
+	@ 072,002 SAY "Lote"                        SIZE 025,007 OF oDlg FONT oFontItens COLORS CLR_BLACK PIXEL
+	@ 071,040 MSGET oLote VAR cLote               SIZE 085,010 OF oDlg VALID ValLote() COLORS CLR_BLACK PIXEL
+	oLote:SETFOCUS()		//POSICIONA NO CAMPO LOTE
+	
+	@ 092,002 SAY "Serial"                        SIZE 025,007 OF oDlg FONT oFontItens COLORS CLR_BLACK PIXEL
+	@ 091,040 MSGET oSerie VAR cSERIAL             SIZE 085,010 OF oDlg VALID ValSerie() COLORS CLR_BLACK PIXEL
+
+	oSerie:SETFOCUS()		//POSICIONA NO CAMPO SERIET
+	
+ENDIF
+
+aLstProd:= Array( 1, 5 ) //LIMPANDO ARRAY PARA PROXIMA CAIXA ----------------------------------------
+oLstProd:SetArray( aLstProd )
+oLstProd:bLine := { || { aLstProd[oLstProd:nAt, 1], aLstProd[oLstProd:nAt, 2], aLstProd[oLstProd:nAt, 3], aLstProd[oLstProd:nAt, 4] ,aLstProd[oLstProd:nAt, 5] } }
+oLstProd:Refresh()                                          
+nQtdCx := 0 
+//oDlg:Refresh()
+
+oCX:END()
+
+oCodProd:SETFOCUS()		//POSICIONA NO CAMPO PRODUTO
+
+RETURN
+
+*********************************************************************************************************************************************************************
+STATIC FUNCTION VALPROD()	//VALIDACAO PRODUTO                  
+
+  	LOCAL nCOUNT, X	:= 0		//CONTADOR DE QUANTIDADES ADICIONADAS
+	LOCAL _lRET 	:= .F. 		//RETORNO DA FUNCAO		
+	lRETPROD    	:= .F.     	//RETORNO DA VALIDACAO PRODUTO
+	lRETLOTE		:= .F. 		//RETORNO LOTE
+	lRETSERIAL		:= .F. 		//RETORNO SERIAL
+
+	IF EMPTY( ALLTRIM( UPPER(cCODPROD) ) )	//SE CAMPO PRODUTO VAZIO	
+		_lRET := .T.                   		//RETORNA .T.
+	ELSE                                 	//SE NAO
+		
+		//VALIDA CADASTRO PRODUTO ---------------------------------------------------------------------------
+		DBSELECTAREA("SB1")														//CADASTRO PRODUTOS
+		DBSETORDER(1)      														//FILIAL + PRODUTO
+		IF SB1->( ! DBSEEK( xFILIAL("SB1") + ALLTRIM( UPPER(cCodProd) ) ) )	//SE NAO ENCONTRAR
+			MSGALERT("PRODUTO NAO ENCONTRADO NO CADASTRO","ALPA101.PRW LINE:296")                    	//ALERTA
+			_lRET := .F.                                                       	//RETORNA FALSO
+		ELSE                                            						//SE ENCONTRAR NO CADASTRO -- 
+			
+			//VALIDA SEPARACAO --------------------------------------------------------------------------------------------------------
+			cPRODUTO	:= ALLTRIM(UPPER(SB1->B1_COD)) 							//CODIGO PRODUTO
+			cPRODESC   	:= ALLTRIM(UPPER(SB1->B1_DESC))+" ("+ALLTRIM(UPPER(SB1->B1_CAPACID))+")"	//DESCRICAO PRODUTO + Capacidade - Alterado por Luiz Eduardo - Totalit - 04/12/2019
+			//QUERY PARA VALIDAR SEPARACAO ------------------------------------------------------------------------ 
+			cQRY:=" SELECT C9_PRODUTO "+CRLF									//CABEC
+			cQRY+=" FROM "+RETSQLNAME("SC9")+" (NOLOCK) "+CRLF 					//PEDIDOS LIBERADOS
+			cQRY+=" WHERE "+RETSQLNAME("SC9")+".D_E_L_E_T_ = '' "+CRLF         	//PEDIDOS LIBERADOS NAO DELETADOS
+			cQRY+=" 	AND C9_FILIAL = '"+xFILIAL("SC9")+"' "+CRLF            	//FILIAL LOGADA DA SC9
+			cQRY+=" 	AND C9_CODBAR = '"+ALLTRIM(cCODBAR)+"' "+CRLF          	//CODBAR
+			cQRY+=" 	AND C9_PRODUTO = '"+ALLTRIM(UPPER(cCODPROD))+"' "+CRLF	//PRODUTO 
+			IF MV_PAR02 = 1
+				cQry+=" AND C9_BLEST   IN ('10')"+CRLF
+				cQry+=" AND C9_BLCRED  IN ('10')"+CRLF
+			ELSE
+				cQry+=" AND C9_BLEST  NOT IN ('02','03','10')"+CRLF
+				cQry+=" AND C9_BLCRED NOT IN ('01','04','05','09','10')"+CRLF
+			ENDIF
+			cQRY+=" GROUP BY C9_PRODUTO "+CRLF									//ORDEM PEDIDO, ITEM, PRODUTO -----							
+			IF SELECT("PRO") > 0                                            	//SE ALIAS ABERTO
+				DBSELECTAREA("PRO")                                           	//SELECIONA ALIAS
+				PRO->(DBCLOSEAREA())                                          	//FECHA
+			ENDIF                                                              	//FIM         
+		 	DBUSEAREA(.T.,"TOPCONN",TCGENQRY(,,cQRY),"PRO",.F.,.F.)			//ABRINDO ALIAS PRO ---------------
+		 			                            		 		
+		 	IF EMPTY(PRO->C9_PRODUTO)			//SE NAO ENCONTROU
+		 		_lRET := .F.
+		 		MSGALERT("PRODUTO NÃO ENCONTRADO NESSA SEPARAÇÃO!","ALPA101.PRW LINE:319")	
+		 	ELSE					    
+				
+				IF SB1->B1_RASTRO <> "L"		//SE NÃO CONTROLA LOTE
+					lRETLOTE := .T.										//RETONO VALIDACAO LOTE .T.
+					_lRET    := .T.            							//RETORNO FUNCAO .T.
+					oLOTE:Refresh()										//ATUALIZA CAMPO LOTE
+					oLOTE:Disable()            							//DESABILITA CAMPO LOTE	 
+				ENDIF
+				
+				IF SB1->B1_CTRSER <> "S"		//SE NAO CONTROLA SERIE
+					nQUANT := 1								//QUANTIDADE SEPARACAO
+					oSerie:Disable()                		//DESABILITA CAMPO SERIAL
+					oSerie:Refresh()                        //ATUALIZA CAMPO SERIAL
+					_lRET     := .T.                        //RETONO FUNCAO .T.
+					lRETSERIAL:= .T.                        //RETORNO VALIDACAO SERIAL .T.	
+				ENDIF
+				
+				//QUERY PARA SOMA QUANT PRODUTOS ------------------------------------------------------------------------
+				cQRY:=" SELECT C9_PRODUTO, C9_LOTECTL, SUM(C9_QTDLIB) AS SOMA "+CRLF	//CABEC
+				cQRY+=" FROM "+RETSQLNAME("SC9")+" (NOLOCK)"+CRLF 						//PEDIDOS LIBERADOS
+				cQRY+=" WHERE "+RETSQLNAME("SC9")+".D_E_L_E_T_ = '' "+CRLF     			//NAO DELETADOS
+				cQRY+=" 	AND C9_FILIAL = '"+xFILIAL("SC9")+"' "+CRLF        			//FILIAL LOGADA
+				cQRY+=" 	AND C9_CODBAR = '"+ALLTRIM(cCODBAR)+"' "+CRLF          		//CODBAR
+				cQRY+=" 	AND C9_PRODUTO = '"+ALLTRIM(UPPER(cCODPROD))+"' "+CRLF		//PRODUTO 
+				IF MV_PAR02 = 1
+					cQry+=" AND C9_BLEST   IN ('10')"+CRLF
+					cQry+=" AND C9_BLCRED  IN ('10')"+CRLF
+				ELSE
+					cQry+=" AND C9_BLEST  NOT IN ('02','03','10')"+CRLF
+					cQry+=" AND C9_BLCRED NOT IN ('01','04','05','09','10')"+CRLF
+				ENDIF
+				cQRY+=" GROUP BY C9_PRODUTO, C9_LOTECTL "+CRLF							//AGRUPANDO PARA SOMA ---------
+				IF SELECT("LOT") > 0                                            		//SE ALIAS ABERTO
+					DBSELECTAREA("LOT")                                           		//SELECIONA ALIAS
+					LOT->(DBCLOSEAREA())                                          		//FECHA
+				ENDIF                                                              		//FIM         
+				DBUSEAREA(.T.,"TOPCONN",TCGENQRY(,,cQRY),"LOT",.F.,.F.)				//ABRINDO ALIAS LOT
+				
+				nCOUNT:=0
+			    //CONTANDO REGISTROS JA ADICIONADOS NA LISTA --------
+			    IF aLSTPROD[1,1] <> NIL 
+	            	FOR X:=1 TO LEN(aLSTPROD)
+	            		IF ALLTRIM(UPPER(aLSTPROD[X,1])) == ALLTRIM(UPPER(cCodProd))
+	            			nCOUNT	+= VAL(aLSTPROD[X,3])
+	            		ENDIF	 	
+	            	NEXT X
+	            ENDIF
+			    
+			    //CONTANDO REGISTROS JA ADICIONADOS EM OUTRA CAIXA --
+			    IF LEN(aTOTAL) > 0 
+	            	FOR X:=1 TO LEN(aTOTAL)
+	            		IF ALLTRIM(UPPER(aTOTAL[X,1])) == ALLTRIM(UPPER(cCodProd))
+	            			nCOUNT	+= VAL(aTOTAL[X,3])
+	            		ENDIF	 	
+	            	NEXT X
+	            ENDIF
+	            
+				//COMPARANDO COM QUERY DOS PEDIDOS ----------------------------------------
+				IF nCOUNT <> LOT->SOMA .OR. SB1->B1_RASTRO == "L"
+					lRETPROD 	:= .T.     	//RETORNO PRODUTO .T.
+					_lRET    	:= .T.     	//RETORNO STATIC
+					oCodProd:Refresh()   	//ATUALIZA OBJETO PRODUTO
+					oCodProd:Disable()   	//DESABILITA OBJETO PRODUTO
+				ELSE
+					MSGALERT("PRODUTO JÁ ADICIONADO NA LISTA!","ALPA101.PRW LINE:377")
+					LIMPCAMPO()
+				ENDIF
+				
+				IF SELECT("LOT") > 0                                            		//SE ALIAS ABERTO
+					DBSELECTAREA("LOT")                                           		//SELECIONA ALIAS
+					LOT->(DBCLOSEAREA())                                          		//FECHA
+				ENDIF
+				
+			ENDIF
+			
+			IF SELECT("PRO") > 0                                            	//FECHANDO ALIAS PRO
+				DBSELECTAREA("PRO")                                           	//SELECIONA ALIAS
+				PRO->(DBCLOSEAREA())                                          	//FECHA
+			ENDIF                                                              	//FIM
+			
+		ENDIF
+
+		SB1->( DBCLOSEAREA() )
+
+	ENDIF
+
+	If lRETPROD
+		INCPROD()
+	EndIf
+                       
+oDlg:refresh()
+
+RETURN( _lRET )
+
+*********************************************************************************************************************************************************************
+STATIC FUNCTION VALLOTE()
+    
+	LOCAL	nCOUNT	:= 0	//CONTADOR DE QUANTIDADES ADICIONADAS
+	Local 	_lRET 	:= .F.	//RETORNO FUNCAO
+	Local   X := 1
+	lRETLOTE    	:= .F.	//RETORNO VALIDACAO LOTE
+	
+
+	IF EMPTY( AllTrim( UPPER(cLOTE) ) )	//SE CAMPO LOTE VAZIO
+		_lRET := .T.				  	//RETORNA VERDADEIRO             
+	ELSE
+		                                                              		                                                                 
+		//QUERY PARA VALIDACAO DO LOTE ------------------------------------------------------------------------
+		cQRY:=" SELECT C9_PRODUTO, C9_LOTECTL, SUM(C9_QTDLIB) AS SOMA "+CRLF	//CABEC
+		cQRY+=" FROM "+RETSQLNAME("SC9")+" (NOLOCK)"+CRLF 								//PEDIDOS LIBERADOS
+		cQRY+=" WHERE "+RETSQLNAME("SC9")+".D_E_L_E_T_ = '' "+CRLF     			//NAO DELETADOS
+		cQRY+=" 	AND C9_FILIAL = '"+xFILIAL("SC9")+"' "+CRLF        			//FILIAL LOGADA
+		cQRY+=" 	AND C9_CODBAR = '"+ALLTRIM(cCODBAR)+"' "+CRLF          		//CODBAR
+		cQRY+=" 	AND C9_PRODUTO = '"+ALLTRIM(UPPER(cCODPROD))+"' "+CRLF		//PRODUTO
+		cQRY+=" 	AND C9_LOTECTL = '"+ALLTRIM(UPPER(cLOTE))+"' "+CRLF			//LOTE 
+		IF MV_PAR02 = 1
+			cQry+=" AND C9_BLEST   IN ('10')"+CRLF
+			cQry+=" AND C9_BLCRED  IN ('10')"+CRLF
+		ELSE
+			cQry+=" AND C9_BLEST  NOT IN ('02','03','10')"+CRLF
+			cQry+=" AND C9_BLCRED NOT IN ('01','04','05','09','10')"+CRLF
+		ENDIF
+		cQRY+=" GROUP BY C9_PRODUTO, C9_LOTECTL "+CRLF							//AGRUPANDO PARA SOMA ---------
+		IF SELECT("LOT") > 0                                            	//SE ALIAS ABERTO
+			DBSELECTAREA("LOT")                                           	//SELECIONA ALIAS
+			LOT->(DBCLOSEAREA())                                          	//FECHA
+		ENDIF                                                              	//FIM         
+		DBUSEAREA(.T.,"TOPCONN",TCGENQRY(,,cQRY),"LOT",.F.,.F.)			//ABRINDO ALIAS LOT
+		 		
+		IF EMPTY(LOT->C9_PRODUTO)								//SE NAO ACHOU LOTE NESSA SEPARACAO
+			
+			INICAMPO()
+			LimpCampo()
+	
+			//MSGALERT("LOTE NÃO ENCONTRADO NESSA SEPARAÇÃO!")	//ALERTA
+		ELSE					                           		//SE NAO
+			cLOTE	 := LOT->C9_LOTECTL							//RECEBE LOTE
+			lRETLOTE := .T.										//RETONO VALIDACAO LOTE .T.
+			_lRET    := .T.            							//RETORNO FUNCAO .T.
+			oLOTE:Refresh()										//ATUALIZA CAMPO LOTE
+			oLOTE:Disable()            							//DESABILITA CAMPO LOTE
+		ENDIF
+		
+		//VERIFICANDO SE PRODUTO POSSUI CONTROLE DE SERIAL ---------------------------------------------------------------------------------------------
+		DBSELECTAREA("SB1")									//CAD PRODUTO	
+		DBSETORDER(1)         								//FILIAL + COD
+		IF DBSEEK(xFILIAL("SB1")+ALLTRIM(UPPER(cCodProd)))	//FILIAL + PRODUTO			
+			IF SB1->B1_CTRSER = 'N'                  	//SE CONTROLA SERIAL
+			                                                         
+				nCOUNT:=0
+			    //CONTANDO REGISTROS JA ADICIONADOS NA LISTA --------
+			    IF aLSTPROD[1,1] <> NIL 
+	            	FOR X:=1 TO LEN(aLSTPROD)
+	            		IF ALLTRIM(UPPER(aLSTPROD[X,1])) == ALLTRIM(UPPER(cCodProd)) .AND. ALLTRIM(UPPER(aLSTPROD[X,4])) == ALLTRIM(UPPER(cLOTE))
+	            			nCOUNT	+= VAL(aLSTPROD[X,3])
+	            		ENDIF	 	
+	            	NEXT X
+	            ENDIF
+			    
+			    //CONTANDO REGISTROS JA ADICIONADOS EM OUTRA CAIXA --
+			    IF LEN(aTOTAL) > 0 
+	            	FOR X:=1 TO LEN(aTOTAL)
+	            		IF ALLTRIM(UPPER(aTOTAL[X,1])) == ALLTRIM(UPPER(cCodProd)) .AND. ALLTRIM(UPPER(aTOTAL[X,4])) == ALLTRIM(UPPER(cLOTE))
+	            			nCOUNT	+= VAL(aTOTAL[X,3])
+	            		ENDIF	 	
+	            	NEXT X
+	            ENDIF
+	            
+				//COMPARANDO COM QUERY DOS PEDIDOS ----------------------------------------
+				IF nCOUNT <> LOT->SOMA
+					nQUANT := 1								//QUANTIDADE SEPARACAO
+					oSerie:Disable()                		//DESABILITA CAMPO SERIAL
+					oSerie:Refresh()                        //ATUALIZA CAMPO SERIAL
+					_lRET     := .T.                        //RETONO FUNCAO .T.
+					lRETSERIAL:= .T.                        //RETORNO VALIDACAO SERIAL .T.
+				ELSE
+					_lRET 		:= .T.
+					lRETSERIAL	:= .F.
+					LimpCampo() 
+					MSGALERT("LOTE NÃO ENCONTRADO OU TODOS OS ITENS DESSE PRODUTO E DESSE LOTE JÁ FORAM ADICIONADOS!","ALPA101.PRW LINE:495")					
+				ENDIF
+	
+			ENDIF
+			IF lRETSERIAL	//SE SERIE		
+				INCPROD()	//FUNCAO PARA PREENCHER TELA DE GRAVACAO DOS PRODUTOS
+			ENDIF
+		ENDIF
+		
+		IF SELECT("LOT") > 0                               	//FECHANDO ALIAS LOT
+			DBSELECTAREA("LOT")                            	//SELECIONA ALIAS
+			LOT->(DBCLOSEAREA())                           	//FECHA
+		ENDIF                                              	//FIM 
+		
+	ENDIF
+	                   
+	oDlg:refresh()
+RETURN( _lRET )
+
+*********************************************************************************************************************************************************************
+STATIC FUNCTION VALSERIE()
+
+	LOCAL _lRET := .F.    	//RETORNO FUNCAO SERIE
+	LOCAL nRET	:= 0		//RETORNO DA BUSCA SERIE NA LISTA DA CAIXA CORRENTE 
+	LOCAL nRET2	:= 0		//RETORNO DA BUSCA SERIE NA LISTA DO TOTAL DE CAIXAS 
+	lRETSERIAL  := .F.    	//RETORNO FUNCAO
+	
+
+		
+			IF Empty( AllTrim( UPPER(cSERIAL) ) )  	//SE CAMPO SERIAL VAZIO
+				_lRET 		:= .T.
+				lRETSERIAL  := .T.
+				
+			ELSE
+				//QUERY VALIDACAO SERIE SDC(COMPOSICAO DO EMPENHO) ---------------------------------------------------------------
+				cQRY:=" SELECT DC_PRODUTO, DC_QUANT, DC_LOCAL, DC_LOCALIZ, DC_LOTECTL, DC_NUMSERI "+CRLF 
+				cQRY+=" FROM "+RETSQLNAME("SDC")+" AS DC "+CRLF
+				cQRY+=" WHERE DC.D_E_L_E_T_ = '' "+CRLF
+				cQRY+=" 	AND DC_FILIAL = '"+xFILIAL("SDC")+"' "+CRLF
+				cQRY+=" 	AND DC_PEDIDO IN ("+ALLTRIM(SUBSTRING(cPEDIDO,1,LEN(cPEDIDO)-1))+") "+CRLF
+				cQRY+=" 	AND UPPER(DC_PRODUTO) = '"+ALLTRIM(UPPER(cCodProd))+"' "+CRLF
+				cQRY+=" 	AND UPPER(DC_LOTECTL) = '"+ALLTRIM(UPPER(cLOTE))+"' "+CRLF
+				cQRY+=" 	AND UPPER(DC_NUMSERI) = '"+ALLTRIM(UPPER(cSERIAL))+"' "+CRLF
+				IF SELECT("SER") > 0                                            	//SE ALIAS ABERTO
+					DBSELECTAREA("SER")                                           	//SELECIONA ALIAS
+					SER->(DBCLOSEAREA())                                          	//FECHA
+				ENDIF                                                              	//FIM         
+				DBUSEAREA(.T.,"TOPCONN",TCGENQRY(,,cQRY),"SER",.F.,.F.)			//ABRINDO ALIAS SER -------------------------
+				                         
+				nRET 	:= ASCAN(aLstProd	,{ |X| X[5]= ALLTRIM(UPPER(cSERIAL)) })     	//VERIFICA SE JA ADICIONOU NA LISTA CORRENTE
+				nRET2 	:= ASCAN(aTOTAL		,{ |X| X[5]= ALLTRIM(UPPER(cSERIAL)) })      	//VERIFICA SE JA ADICIONOU NA LISTA TOTAL
+				IF EMPTY(SER->DC_PRODUTO) .OR. nRET <> 0  .OR. nRET2 <> 0 			//SE NAO ACHOU SERIAL
+					MSGALERT("SÉRIE NÃO ENCONTRADA NESSA SEPARAÇÃO OU JÁ ADICIONADA NA LISTA!","ALPA101.PRW LINE:489") 	//MENSAGEM
+					_lRET 		:= .T.
+					lRETSERIAL	:= .F.
+					LimpCampo() 	
+				ELSE
+					nQUANT := SER->DC_QUANT											//QUANTIDADE SEPARACAO
+					oSerie:Disable()                                               	//DESABILITA CAMPO SERIAL
+					oSerie:Refresh()                                              	//ATUALIZA CAMPO SERIAL
+					_lRET     := .T.                                               	//RETONO FUNCAO .T.
+					lRETSERIAL:= .T.                                             	//RETORNO VALIDACAO SERIAL .T.
+				ENDIF
+				IF SELECT("SER") > 0                                            	//SE ALIAS ABERTO
+					DBSELECTAREA("SER")                                           	//SELECIONA ALIAS
+					SER->(DBCLOSEAREA())                                          	//FECHA
+				ENDIF                                                              	//FIM 
+			ENDIF																	//FIM -------------------------------------------------------------------	
+
+	IF lRETSERIAL	//SE SERIE		
+		INCPROD()	//FUNCAO PARA PREENCHER TELA DE GRAVACAO DOS PRODUTOS
+	ENDIF
+
+RETURN( _lRET )
+
+*********************************************************************************************************************************************************************
+STATIC FUNCTION INCPROD()	//GRAVACAO DOS PRODUTOS NA TELA
+
+	Local lEncont     := .F.
+	Local nI          := 0
+
+If lRetProd .and. lRetLote .and. lRETSERIAL
+
+	//If lAltProds
+	For nI := 1 to Len( aLstProd )
+		If aLstProd[nI, 1] == AllTrim( UPPER(cCodProd) )
+			If ALLTRIM(UPPER(aLstProd[nI, 2])) == AllTrim( UPPER(cLOTE) )
+				
+				//VALIDACAO PARA CONTROLE DE SERIAL DO PRODUTO ----------------------------------------
+				DBSELECTAREA("SB1")											//CAD PRODUTO	
+				DBSETORDER(1)         										//FILIAL + COD
+				IF DBSEEK(xFILIAL("SB1")+ALLTRIM(UPPER(cCodProd)))					//FILIAL + PRODUTO			
+					IF SB1->B1_CTRSER = 'S'                  				//SE NAO CONTROLA SERIAL
+						If aLstProd[nI, 3] == AllTrim( UPPER(cSERIAL) )	//VALIDACAO PARA SERIAL
+							lEncont := .T.                             		//ENCONTROU
+							Exit	                                   		//FIM
+						EndIf                                            	//FIM
+			    	ELSE                                                  	//SE NAO CONTROLA
+			    		lEncont := .T.                                   	//ENCONTROU 
+						Exit	                                         	//FIM CONTROLE
+			    	ENDIF                                                	//FIM PRODUTO
+			    ENDIF														//FIM ---------------------
+			    
+			EndIf
+		EndIf
+	Next
+
+	IF aLstProd[1,1] = NIL
+		aLstProd  := {}
+	ENDIF
+		
+	If ! lEncont		    
+		AADD( aLstProd,{ ALLTRIM(UPPER(cPRODUTO)) , ALLTRIM(UPPER(cVALTOCHAR(cPRODESC))), ALLTRIM(UPPER(cVALTOCHAR(nQUANT))), ALLTRIM(UPPER(cLOTE)), ALLTRIM(UPPER(cSERIAL)) } )
+	EndIf
+    
+	IF LEN(aLSTPROD) > 0
+		IF aLSTPROD[1,1] = NIL
+			aLSTPROD := {} 
+		ENDIF	
+	ENDIF
+	
+	oLstProd:SetArray( aLstProd )
+	oLstProd:bLine := { || { aLstProd[oLstProd:nAt, 1], aLstProd[oLstProd:nAt, 2], aLstProd[oLstProd:nAt, 3], aLstProd[oLstProd:nAt, 4] ,aLstProd[oLstProd:nAt, 5] } }
+	oLstProd:Refresh()
+	nQtdCx:= len(aLstProd) 
+	oDlg:Refresh()
+	
+	lRetProd  := .F.
+	lRetLote  := .F.
+	lRETSERIAL:= .F.
+
+	LimpCampo()
+EndIf
+
+RETURN 
+
+*********************************************************************************************************************************************************************
+/*
+AUTOR	: ANDERSON YAMAZAKI / BIALE
+DATA	: 17/10/12
+DESC	: FUNCAO PARA IMPRIMIR AS ETIQUETAS DAS CAIXAS
+*/
+
+STATIC FUNCTION ETICAI(aProOnu)	//U_ETICAI()
+
+Local aArea   := GetArea()
+Local cDesc1         	:= "ETIQUETA DE CAIXAS"
+Local cDesc2         	:= ""
+Local cDesc3         	:= ""
+Local titulo       		:= ""
+Local nLin         		:= 80
+Local Cabec1       		:= ""
+Local Cabec2       		:= ""
+Local aOrd := {}
+Private lEnd         	:= .F.
+Private lAbortPrint  	:= .F.
+Private CbTxt        	:= ""
+Private limite          := 80
+Private tamanho         := "G"
+Private nomeprog        := "ETICAI" // Coloque aqui o nome do programa para impressao no cabecalho
+Private nTipo           := 18
+Private aReturn         := { "Zebrado", 1, "Administracao", 2, 2, 1, "", 1}
+Private nLastKey        := 0
+Private cbcont     		:= 00
+Private CONTFL     		:= 01
+Private m_pag      		:= 01
+Private wnrel      		:= "ALPZ01" // Coloque aqui o nome do arquivo usado para impressao em disco
+Private cPerg 			:= nil
+
+dbSelectArea("ZBC")
+dbSetOrder(1)
+
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³ Monta a interface padrao com o usuario...                           ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+wnrel := SetPrint("ZBC",NomeProg,cPerg,@titulo,cDesc1,cDesc2,cDesc3,.F.,aOrd,.F.,Tamanho,,.F.)
+
+If nLastKey == 27
+	Return
+Endif
+
+SetDefault(aReturn,"ZBC")
+
+If nLastKey == 27
+   Return
+Endif
+
+nTipo := If(aReturn[4]==1,15,18)
+
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³ Processamento. RPTSTATUS monta janela com a regua de processamento. ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+RptStatus({|| RunReport(Cabec1,Cabec2,Titulo,nLin,aProOnu) },Titulo)
+
+RestArea(aArea)
+
+RETURN
+/*/
+ÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜ
+±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
+±±ÉÍÍÍÍÍÍÍÍÍÍÑÍÍÍÍÍÍÍÍÍÍËÍÍÍÍÍÍÍÑÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍËÍÍÍÍÍÍÑÍÍÍÍÍÍÍÍÍÍÍÍÍ»±±
+±±ºFun‡„o    ³RUNREPORT º Autor ³ AP6 IDE            º Data ³  19/12/11   º±±
+±±ÌÍÍÍÍÍÍÍÍÍÍØÍÍÍÍÍÍÍÍÍÍÊÍÍÍÍÍÍÍÏÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÊÍÍÍÍÍÍÏÍÍÍÍÍÍÍÍÍÍÍÍÍ¹±±
+±±ºDescri‡„o ³ Funcao auxiliar chamada pela RPTSTATUS. A funcao RPTSTATUS º±±
+±±º          ³ monta a janela com a regua de processamento.               º±±
+±±ÌÍÍÍÍÍÍÍÍÍÍØÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍ¹±±
+±±ºUso       ³ Programa principal                                         º±±
+±±ÈÍÍÍÍÍÍÍÍÍÍÏÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍ¼±±
+±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
+ßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßß
+/*/
+
+STATIC FUNCTION RunReport(Cabec1,Cabec2,Titulo,nLin,aProOnu)
+                                  
+LOCAL	cTIPO	:= ""						//TIPO DO PEDIDO
+LOCAL	cNOME	:= ""						//NOME
+LOCAL	cEND	:= ""						//ENDERECO
+LOCAL	cMUN	:= ""						//MUNICIPIO
+LOCAL	cEST	:= ""						//ESTADO
+LOCAL 	cCEP	:= ""						//CEP      
+LOCAL 	cTEL	:= ""						//TELEFONE
+LOCAL nONU  	:= 0
+Local nU, nP, nE			:= 0
+Local nLimit	:= 0
+Local nLiIt   := 0
+
+Private cETQ 	:= ""
+Private cFL  	:= CHR(13)+CHR(10)
+Private cONU  := ""
+
+
+//POSICIONANDO NO PEDIDO PARA VERIFICAR SE E DEVOLUCAO OU BENEFICIAMENTO
+DBSELECTAREA("SC5")	//PEDIDO DE VENDAS
+DBSETORDER(1)		//FILIAL + NUM 
+dbseek(xFILIAL("SC5")+ALLTRIM(cNUM))
+cTIPO	:= ALLTRIM( GETADVFVAL("SC5","C5_TIPO",xFILIAL("SC5")+ALLTRIM(cNUM),1) )
+
+//VALIDACAO PARA FORNECEDOR OU CLIENTE
+IF ALLTRIM(cTIPO) $ "D;B"	//SE DEVOLUCAO OU BENEFICIAMENTO
+	DBSELECTAREA("SA2")		//FORNECEDOR			
+	DBSETORDER(1)          	//FILIAL+COD+LOJA
+	IF DBSEEK(xFILIAL("SA2")+ALLTRIM(cCLIENTE)+ALLTRIM(cLOJA)) 	//SE ACHOU CLIENTE
+		cNOME	:= SA2->A2_NOME						//NOME
+		cEND	:= SUBSTR(SC5->C5_AXENDEN,1,40) //SA2->A2_END						//ENDERECO
+		cMUN	:= SUBSTR(SC5->C5_AXENDEN,41) //""//SA2->A2_MUN						//MUNICIPIO
+		cEST	:= ""//SA2->A2_EST						//ESTADO
+		cCEP	:= ""//SA2->A2_CEP						//CEP      
+		cTEL	:= SA2->A2_TEL						//TELEFONE	
+	ENDIF
+ELSE
+	DBSELECTAREA("SA1")											//CAD CLIENTE
+	DBSETORDER(1)                                 				//FILIAL + COD + LOJA
+	IF DBSEEK(xFILIAL("SA1")+ALLTRIM(cCLIENTE)+ALLTRIM(cLOJA)) 	//SE ACHOU CLIENTE
+		cNOME	:= SA1->A1_NOME						//NOME
+		cEND	:= SUBSTR(SC5->C5_AXENDEN,1,40) //SA1->A1_END						//ENDERECO
+		cMUN	:= SUBSTR(SC5->C5_AXENDEN,42) //¹¹SA1->A1_MUN						//MUNICIPIO
+		cEST	:= "" //""SA1->A1_EST						//ESTADO
+		cCEP	:= "" //SA1->A1_CEP						//CEP      
+		cTEL	:= SA1->A1_TEL						//TELEFONE
+	ENDIF
+ENDIF
+            
+	cETQ+="CT~~CD,~CC^~CT~"+cFL
+	cETQ+="^XA~TA000~JSN^LT0^MNW^MTD^PON^PMN^LH0,0^JMA^PR4,4~SD15^JUS^LRN^CI0^XZ"+cFL
+	cETQ+="^XA"+cFL
+	cETQ+="^MMT"+cFL
+	cETQ+="^PW799"+cFL
+	cETQ+="^LL0639"+cFL
+	cETQ+="^LS0"+cFL
+	cETQ+="^FT433,609^A0N,62,62^FH\^FD"+DTOC(dDATABASE)+"^FS"+cFL
+	
+	//Alterado por Fagner em 12/03/2013 imprimir código de barras no lugar do identificador do parâmetro
+	//cETQ+="^FT19,610^A0N,62,62^FH\^FD"+ALLTRIM(cIDENT)+"^FS"+cFL 
+	cETQ+="^FT19,610^A0N,62,62^FH\^FD"+ALLTRIM(cCODBAR)+"^FS"+cFL                                       
+	//Fim alteração 
+	
+	cETQ+="^FT24,83^A0N,62,62^FH\^FDALPAX^FS"+cFL
+	cETQ+="^FT96,347^A0N,25,24^FH\^FD: "+ALLTRIM(cNOME)+" ^FS"+cFL
+	cETQ+="^FT96,378^A0N,25,24^FH\^FD: "+ALLTRIM(cEND)+" ^FS"+cFL
+//	cETQ+="^FT96,409^A0N,25,24^FH\^FD: "+ALLTRIM(cMUN)+" - "+ALLTRIM(cEST)+" ^FS"+cFL
+	cETQ+="^FT96,409^A0N,25,24^FH\^FD: "+ALLTRIM(cMUN)+" ^FS"+cFL
+	//cETQ+="^FT96,439^A0N,25,24^FH\^FD: "+ALLTRIM(TRANSFORM(cCEP,"@R 99999-999"))+" ^FS"+cFL
+	cETQ+="^FT96,470^A0N,25,24^FH\^FD: "+ALLTRIM(cTEL)+" ^FS"+cFL
+	cETQ+="^FT22,523^A0N,25,24^FH\^FDPESO: "+ALLTRIM( TRANSFORM(nPESO,"@E 999,999.999") )+" KG ^FS"+cFL
+	cETQ+="^FT27,347^A0N,25,24^FH\^FDNOME^FS"+cFL
+	cETQ+="^FT27,377^A0N,25,24^FH\^FDEND^FS"+cFL
+	cETQ+="^FT27,408^A0N,25,24^FH\^FDMUN^FS"+cFL
+	cETQ+="^FT27,439^A0N,25,24^FH\^FDCEP^FS"+cFL
+	cETQ+="^FT27,470^A0N,25,24^FH\^FDFONE^FS"+cFL
+	cETQ+="^FT205,52^A0N,31,31^FH\^FDComercio de Produtos Laborat. Ltda.^FS"+cFL
+	cETQ+="^FT205,90^A0N,31,31^FH\^FDFone: 11 4057.9200   Fax: 11 4057.9204^FS"+cFL
+	cETQ+="^BY3,3,149^FT100,268^BCN,,Y,N"+cFL
+	cETQ+="^FD>: "+ALLTRIM(cCODBAR)+STRZERO(nCAIXA,3)+" ^FS"+cFL
+	cETQ+="^PQ1,0,1,Y^XZ"+cFL
+
+//etiqueta ONU
+If !empty(aProOnu)
+
+	nONU := 0
+
+	For nU := 1 to len(aProOnu)
+
+		nONU ++
+		nPt	 		:= 60
+		nLimit	:= 5
+		nLiIt		:= nLimit
+
+		&("cONU"+alltrim(str(nONU))) :=""
+		&("cONU"+alltrim(str(nONU))) +="CT~~CD,~CC^~CT~"+cFL
+		&("cONU"+alltrim(str(nONU))) +="^XA~TA000~JSN^LT0^MNW^MTD^PON^PMN^LH0,0^JMA^PR4,4~SD15^JUS^LRN^CI0^XZ"+cFL
+		&("cONU"+alltrim(str(nONU))) +="^XA"+cFL
+		&("cONU"+alltrim(str(nONU))) +="^MMT"+cFL
+		&("cONU"+alltrim(str(nONU))) +="^PW799"+cFL
+		&("cONU"+alltrim(str(nONU))) +="^LL0639"+cFL
+		&("cONU"+alltrim(str(nONU))) +="^LS0"+cFL
+
+		If aProOnu[nU][1] <> "0"
+				&("cONU"+alltrim(str(nONU))) +="^FT100,140^A0N,120,120^FH\^FDUN "+aProOnu[nU][1]+" ^FS"+cFL
+				&("cONU"+alltrim(str(nONU))) +="^FT100,170^A0N,25,25^FH\^FD"+aProOnu[nU][2]+" ^FS"+cFL
+				&("cONU"+alltrim(str(nONU))) +="^FO1,200^GB800,0,4^FS"+cFL
+				nPt := 240
+				nLimit	:= 4
+				nLiIt		:= nLimit
+		EndIf
+
+		For nP := 1 to len(aProOnu[nU][3])
+
+			&("cONU"+alltrim(str(nONU)))+="^FT22,"+alltrim(str(nPt))+"^A0N,25,24^FH\^FD"+aProOnu[nU][3][nP][4]+" ^FS"+cFL
+			nPt += 30
+			&("cONU"+alltrim(str(nONU)))+="^FT22,"+alltrim(str(nPt))+"^A0N,25,24^FH\^FDQTD: "+alltrim(str(aProOnu[nU][3][nP][3]))+" ^FS"+cFL
+			&("cONU"+alltrim(str(nONU)))+="^FT240,"+alltrim(str(nPt))+"^A0N,25,24^FH\^FDLOTE: "+aProOnu[nU][3][nP][2]+" ^FS"+cFL
+			&("cONU"+alltrim(str(nONU)))+="^FT440,"+alltrim(str(nPt))+"^A0N,25,24^FH\^FDMARCA: "+aProOnu[nU][3][nP][5]+" ^FS"+cFL
+			nPt += 30
+// Inclusão do número de série - Luiz Eduardo - Totalit - 04/12/2019
+			&("cONU"+alltrim(str(nONU)))+="^FT22,"+alltrim(str(nPt))+"^A0N,25,24^FH\^FDNUM SERIE: "+aProOnu[nU][3][nP][6]+" ^FS"+cFL
+			nPt += 30
+// Final Alteração
+			&("cONU"+alltrim(str(nONU))) +="^FO1,"+alltrim(str(nPt))+"^GB800,0,2^FS"+cFL
+			nPt += 30
+
+			If nP = nLiIt
+				&("cONU"+alltrim(str(nONU))) +="^PQ1,0,1,Y^XZ"+cFL
+				nONU ++
+				&("cONU"+alltrim(str(nONU))) :=""
+				&("cONU"+alltrim(str(nONU))) +="CT~~CD,~CC^~CT~"+cFL
+				&("cONU"+alltrim(str(nONU))) +="^XA~TA000~JSN^LT0^MNW^MTD^PON^PMN^LH0,0^JMA^PR4,4~SD15^JUS^LRN^CI0^XZ"+cFL
+				&("cONU"+alltrim(str(nONU))) +="^XA"+cFL
+				&("cONU"+alltrim(str(nONU))) +="^MMT"+cFL
+				&("cONU"+alltrim(str(nONU))) +="^PW799"+cFL
+				&("cONU"+alltrim(str(nONU))) +="^LL0639"+cFL
+				&("cONU"+alltrim(str(nONU))) +="^LS0"+cFL
+				nPt	:= 60
+				nLimit	:= 5
+				nLiIt += nLimit
+			EndIf
+
+		Next nP
+
+		&("cONU"+alltrim(str(nONU))) +="^PQ1,0,1,Y^XZ"+cFL
+
+	Next nU
+
+EndIf
+
+//MEMOWRIT("C:\ALPZ101.TXT",cETQ)
+	
+@0,0 Psay cETQ
+
+For nE := 1 to nONU
+	If !Empty(&("cONU"+alltrim(str(nE))))
+		@0,0 Psay &("cONU"+alltrim(str(nE)))
+	EndIf
+Next nE
+
+SET DEVICE TO SCREEN
+
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³ Se impressao em disco, chama o gerenciador de impressao...          ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+If aReturn[5]==1
+   dbCommitAll()
+   SET PRINTER TO
+   OurSpool(wnrel)
+Endif
+
+MS_FLUSH()
+
+RETURN
+
+*********************************************************************************************************************************************************************
+STATIC FUNCTION CRIASX1()
+
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³MV_PAR01 = Da Pedido                      ³
+//³MV_PAR02 = Ate Pedido                     ³
+//³MV_PAR03 = Cliente de                     ³
+//³MV_PAR04 = Cliente ate                    ³
+//³MV_PAR05 = Transportadora de              ³
+//³MV_PAR06 = Transportadora ate             ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+PutSx1(cPerg,"01","Ordem Separação?","Ordem Separação?","Ordem Separação?","mv_ch1","C",12,0,0,"G","",""		,"","","mv_par01","","","","","","","","","","","","","","","","",,,)
+
+RETURN                  
+                               ///
+
+Static Function ETIONU(aProOnu) //PROJECT TI - NOVA ETIQUETA ONU - 03/2019
+
+	Local aAreaAtu := getarea()
+	Local nY			 := 0
+	Local nPosP	   := 0
+	Local nPosU	   := 0
+	Local cCodONU	 := ""
+
+	aProOnu	 := {}
+
+	dbSelectArea("SB1")
+	dbSetOrder(1)
+
+	For nY := 1 to len(aLstProd)
+
+			dbseek(xFilial("SB1")+AvKey(aLstProd[ny][1],"B1_COD"))
+			cCodONU := Alltrim(str(SB1->B1_AXNONU))
+
+			nPosU	:= ASCAN(aProOnu ,{ |X| Alltrim(X[1]) == cCodONU })
+
+			If nPosU = 0
+				aadd(aProOnu,{ cCodONU ,;  					//numero ONU
+											 Iif(Empty(SB1->B1_NOFANT),Alltrim(SB1->B1_DESC)+" "+UPPER(SB1->B1_CAPACID),Alltrim(SB1->B1_NOFANT)),;  //descricao ONU
+											 {{;	
+											 ALLTRIM(UPPER(aLstProd[ny][1])),;  	//prod
+				               ALLTRIM(UPPER(aLstProd[ny][4])),;		//lote
+											 1,;																	//qtd
+				               ALLTRIM(UPPER(aLstProd[ny][2])),;		//descricao prod
+											 Alltrim(SB1->B1_MARCA),;
+				               ALLTRIM(UPPER(aLstProd[ny][5]));		//Número de série - Incluído por Luiz Eduardo - Totalit - 04/12/2019
+											 }}})							//marca	
+			Else	
+				nPosP	:= ASCAN(aProOnu[nPosU][3] ,{ |X| Alltrim(X[1])+Alltrim(X[2]) == ALLTRIM(UPPER(aLstProd[ny][1]))+ALLTRIM(UPPER(aLstProd[ny][4])) })
+				If nPosP = 0 
+						aadd(aProOnu[nPosU][3],{ ALLTRIM(UPPER(aLstProd[ny][1])),;  //prod
+				               							 ALLTRIM(UPPER(aLstProd[ny][4])),;	//lote
+											 							 1,;									//qtd
+				               							 ALLTRIM(UPPER(aLstProd[ny][2])),;		//descricao prod
+											 							 Alltrim(SB1->B1_MARCA),;							//marca	
+				               ALLTRIM(UPPER(aLstProd[ny][5]));		//Número de série - Incluído por Luiz Eduardo - Totalit - 04/12/2019
+							})	   
+			 	Else
+					aProOnu[nPosU][3][nPosP][3] += 1
+				EndIf
+			EndIf
+
+	Next nY
+
+	RestArea(aAreaAtu)
+
+Return

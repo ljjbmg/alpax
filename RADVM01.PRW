@@ -1,0 +1,56 @@
+#include "protheus.ch"
+/*
+FUNCAO    : RADVM01
+TIPO      : PROCESSAMENTO
+APLICACAO : BUSCA VALOR BASE E VALOR RETIDO DA SUBST.TRIB NA NOTA DE ENTRADA
+AUTOR     : EDUARDO NAKAMATU/BIALE ADVPL CONSULTORIA E TREINAMENTOS
+EMPRESA   : ALPAX
+===========================================================================
+PARAMETROS:
+CODIGO PRODUTO DA NF DE SAIDA
+QUANTIDADE DA NF DE SAIDA
+DATA DA ULTIMA COMPRA NO B1_UCOM (PARA OTIMIZAR A QUERY)
+
+*/
+
+USER FUNCTION RADVM01(_cCodigo,_nQtd,_dData)
+ 
+Local aRet := {}    
+DEFAULT _dData := (dDatabase - 700)
+                       
+BEGINSQL ALIAS "TMPX"           
+     COLUMN T_VLRBASE AS NUMERIC(17,2)
+     COLUMN T_VLRRET  AS NUMERIC(17,2)
+          
+     SELECT TOP 1 ((D1.D1_BRICMS/D1.D1_QUANT) * %EXP:_nQtd%) T_VLRBASE, ((D1.D1_ICMSRET/D1.D1_QUANT) * %EXP:_nQtd%)T_VLRRET
+     FROM %table:SD1% D1(NOLOCK)
+     LEFT JOIN %table:SF4% F4 (NOLOCK) on F4.%notDel% AND F4.F4_CODIGO = D1.D1_TES
+     WHERE D1.%notDel%
+       AND D1.D1_TIPO = 'N'
+       AND F4.F4_DUPLIC = 'S'
+       AND F4.F4_ESTOQUE = 'S'
+       AND D1.D1_BRICMS > 0
+       AND D1.D1_ICMSRET > 0
+       AND D1.D1_DTDIGIT >= %EXP:DTOS(_dData)%
+       AND D1.D1_COD = %exp:_cCodigo%
+     ORDER BY D1_NUMSEQ DESC
+ENDSQL
+
+IF select("TMPX") <> 0
+	dbselectarea("TMPX") 
+	DBGOTOP()
+	if !EOF()
+		AADD(aRet,TMPX->T_VLRBASE)
+		AADD(aRet,TMPX->T_VLRRET)
+	ELSE
+		AADD(aRet,0)
+		AADD(aRet,0)
+	ENDIF   
+	dbselectarea("TMPX") 
+	TMPX->(DBCLOSEAREA())
+ELSE
+	AADD(aRet,0)
+	AADD(aRet,0)
+ENDIF
+
+RETURN(aRet)
