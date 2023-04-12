@@ -25,10 +25,6 @@ Local _cMens		:= ""
 Local _nValOrc      := 0
 Local UserLib		:= SuperGetMV("MV_USERLIB",,"000000")
 
-
-//_lRet := chksu5()
-
-
 // Testa se o pedido é do usuario
 If Altera
 	If M->CJ_AXATEND <> __cUserId .and. ! __cUserId $ UserLib
