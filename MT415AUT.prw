@@ -90,8 +90,6 @@ If ! _aRet[1] .or. ! _lRet
 	_lRet := .f.
 EndIf
 
-// Testa se saldo do limite de credito é suficiente para efetivacao.   Ocimar
-
 If _lRet == .T.
 
 	SA1->(DbSetOrder(1))
@@ -115,7 +113,6 @@ If _lRet == .T.
 	EndIf
 EndIf
 
-
 IF dDataOrc < dDataBase 
 
 	_lRet := .f.
@@ -134,8 +131,6 @@ restarea(_areasck)
 restarea(_areascj)
 
 Return(_lRet)
-
-
 
 /*
 ÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜ

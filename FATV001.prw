@@ -48,7 +48,12 @@ If _lRet
 	
 	If _nPrcV < _nPrMin
 		ApMsgStop("Preco minimo R$." + Alltrim(Strtran(Str(_nPrMin,16,2),".",","))+" ,voce ultrapassou o limite de desconto deste item")
-		_lRet := .f.
+		
+		If !_cCodUsr $ alltrim(_cUsrLib2)
+			_lRet := .f.
+		else
+			_lRet := .t.
+		EndIf
 	EndIf
 	
 EndIf

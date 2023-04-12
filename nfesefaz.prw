@@ -3093,8 +3093,8 @@ If cTipo == "1"
 				ENDIF                                        
 				//END ANDERSON //-----------------------------------------------------------------------------------------------------
 
-                aGrupoEmb:= {{'A','GRUPO I'},{'B','GRUPO II'},{'C','GRUPO III'},{'D',''}}                         
-                
+                //aGrupoEmb:= {{'A','GRUPO I'},{'B','GRUPO II'},{'C','GRUPO III'},{'D',''}}                         
+                aGrupoEmb:= {{'A','I'},{'B','II'},{'C','III'},{'D',''}}                         
                 For cCont := 1 to Len(aGrupoEmb)
                     if ALLTRIM(SB1->B1_AXGREMB) == aGrupoEmb[cCont,1]
                         cGrupoEmb:= aGrupoEmb[cCont,2]
@@ -3130,7 +3130,8 @@ If cTipo == "1"
 					Endif
 					                
 					If !empty(ALLTRIM(SB1->B1_NOFANT)) 
-						_cXAux += "NPE: " + ALLTRIM(SB1->B1_NOFANT)
+						//_cXAux += "NPE: " + ALLTRIM(SB1->B1_NOFANT)
+						_cXAux += ALLTRIM(SB1->B1_NOFANT)
 					Endif 
 
 					If !Empty(_cXAux) 

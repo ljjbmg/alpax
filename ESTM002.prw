@@ -56,6 +56,7 @@ Else
 	MV_PAR06 = _aParam[06]
 	MV_PAR07 = _aParam[07]
 	MV_PAR08 = _aParam[08]
+	MV_PAR09 = _aParam[09]
 	
 	Processa({|| fAtualiza()})
 	
@@ -101,6 +102,9 @@ _cQuery += "      AND D1_DTDIGIT BETWEEN '" + DTOS(MV_PAR07) + "' AND '" + DTOS(
 _cQuery += "      AND B1_COD BETWEEN '" + MV_PAR01 + "' AND '" + MV_PAR02 + "' "
 _cQuery += "      AND B1_AXLINHA BETWEEN '" + MV_PAR03 + "' AND '" + MV_PAR04 + "' "
 _cQuery += "      AND B1_MARCA BETWEEN '" + MV_PAR05 + "' AND '" + MV_PAR06 + "' "
+If MV_PAR09 == 2 
+	_cQuery += "             AND B1_AXCSV <> '1' "
+EndIf
 _cQuery += "GROUP BY D1_COD "
 
 _cQuery += "UNION ALL "
@@ -118,7 +122,12 @@ _cQuery += "      AND D1.D_E_L_E_T_ = ' ' AND D1_DTDIGIT BETWEEN '" + DTOS(MV_PA
 _cQuery += "      AND B1_COD BETWEEN '" + MV_PAR01 + "' AND '" + MV_PAR02 + "' "
 _cQuery += "      AND B1_AXLINHA BETWEEN '" + MV_PAR03 + "' AND '" + MV_PAR04 + "' "
 _cQuery += "      AND B1_MARCA BETWEEN '" + MV_PAR05 + "' AND '" + MV_PAR06 + "' "
+If MV_PAR09 == 2 
+	_cQuery += "             AND B1_AXCSV <> '1' "
+EndIf
 _cQuery += "GROUP BY D1_COD "
+
+MemoWrite("\queries\estm0002.sql",_cQuery)
 
 TcQuery _cQuery New Alias "QR1"
 
@@ -151,7 +160,12 @@ _cQuery += "       WHERE B1_FILIAL = '" + xFilial("SB1") + "' "
 _cQuery += "             AND B1_COD BETWEEN '" + MV_PAR01 + "' AND '" + MV_PAR02 + "' "
 _cQuery += "             AND B1_AXLINHA BETWEEN '" + MV_PAR03 + "' AND '" + MV_PAR04 + "' "
 _cQuery += "             AND B1_MARCA BETWEEN '" + MV_PAR05 + "' AND '" + MV_PAR06 + "' "
+If MV_PAR09 == 2 
+	_cQuery += "             AND B1_AXCSV <> '1' "
+EndIf
 _cQuery += "             AND Z2.D_E_L_E_T_ = ' ' AND B1.D_E_L_E_T_ = ' ' "
+
+MemoWrite("\queries\estm0002-1.sql",_cQuery)
 
 TcQuery _cQuery New Alias "QR1"
 
@@ -331,6 +345,7 @@ Aadd( aPerg06, "Informe a descricao da Marca Final"		)
 //³MV_PAR06 = Marca ate  ³
 //³MV_PAR07 = Dt.Inicial ³
 //³MV_PAR08 = Dt.Final   ³
+//³MV_PAR09 = Processa PRC ajustado csv?   ³
 //ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
 
 PutSx1(_cPerg,"01","Produto de" 	 ,"Produto de" 	  ,"Produto de"    ,"mv_ch1","C",15,0,0,"G","","SB1","","","MV_PAR01","","","","","","","","","","","","","","","","",aPerg01,aPerg01,aPerg01)
@@ -341,5 +356,5 @@ PutSx1(_cPerg,"05","Marca de"   	 ,"Marca de"   	  ,"Marca de"      ,"mv_ch5","C
 PutSx1(_cPerg,"06","Marca ate"  	 ,"Marca ate"  	  ,"Marca ate"     ,"mv_ch6","C",15,0,0,"G","","SZ2","","","MV_PAR06","","","","","","","","","","","","","","","","",aPerg06,aPerg06,aPerg06)
 PutSx1(_cPerg,"07","Data Inicial"    ,"Data Inicial"  ,"Data Inicial"  ,"mv_ch7","D",08,0,0,"G","",""   ,"","","MV_PAR07","","","","","","","","","","","","","","","","",       ,       ,       )
 PutSx1(_cPerg,"08","Data Final"      ,"Data Final"    ,"Data Final"    ,"mv_ch8","D",08,0,0,"G","",""   ,"","","MV_PAR08","","","","","","","","","","","","","","","","",       ,       ,       )
-
+PutSx1(_cPerg,"09","Processa PRC ajustado csv?","Processa PRC ajustado csv?","Processa PRC ajustado csv?","mv_ch9","C",01,0,0,"G","","","","","MV_PAR09","","","","","","","","","","","","","","","","",aPerg06,aPerg06,aPerg06)
 Return

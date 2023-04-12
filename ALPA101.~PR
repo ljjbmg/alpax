@@ -565,7 +565,7 @@ STATIC FUNCTION VALLOTE()
 		cQRY+=" 	AND C9_FILIAL = '"+xFILIAL("SC9")+"' "+CRLF        			//FILIAL LOGADA
 		cQRY+=" 	AND C9_CODBAR = '"+ALLTRIM(cCODBAR)+"' "+CRLF          		//CODBAR
 		cQRY+=" 	AND C9_PRODUTO = '"+ALLTRIM(UPPER(cCODPROD))+"' "+CRLF		//PRODUTO
-		cQRY+=" 	AND C9_LOTECTL = '"+ALLTRIM(UPPER(cLOTE))+"' "+CRLF			//LOTE 
+		cQRY+=" 	AND C9_LOTECTL = '"+ALLTRIM(cLOTE)+"' "+CRLF			//LOTE 
 		IF MV_PAR02 = 1
 			cQry+=" AND C9_BLEST   IN ('10')"+CRLF
 			cQry+=" AND C9_BLCRED  IN ('10')"+CRLF
@@ -674,7 +674,7 @@ STATIC FUNCTION VALSERIE()
 				cQRY+=" 	AND DC_FILIAL = '"+xFILIAL("SDC")+"' "+CRLF
 				cQRY+=" 	AND DC_PEDIDO IN ("+ALLTRIM(SUBSTRING(cPEDIDO,1,LEN(cPEDIDO)-1))+") "+CRLF
 				cQRY+=" 	AND UPPER(DC_PRODUTO) = '"+ALLTRIM(UPPER(cCodProd))+"' "+CRLF
-				cQRY+=" 	AND DC_LOTECTL = '"+ALLTRIM(UPPER(cLOTE))+"' "+CRLF
+				cQRY+=" 	AND DC_LOTECTL = '"+ALLTRIM(cLOTE)+"' "+CRLF
 				cQRY+=" 	AND UPPER(DC_NUMSERI) = '"+ALLTRIM(UPPER(cSERIAL))+"' "+CRLF
 				
 				MemoWrite("\query\AP101VALSE.sql",cQRY)
@@ -863,8 +863,6 @@ LOCAL nONU  	:= 0
 Local nU, nP, nE			:= 0
 Local nLimit	:= 0
 Local nLiIt   := 0
-Local cAliasZBC
-Local cSerieZbc:=''
 
 Private cETQ 	:= ""
 Private cFL  	:= CHR(13)+CHR(10)
@@ -967,41 +965,16 @@ If !empty(aProOnu)
 
 		For nP := 1 to len(aProOnu[nU][3])
 
-			cAliasZBC := GetNextAlias()
-	
-			BeginSql Alias cAliasZBC
-							SELECT ZBC_CODSEP,ZBC_CAIXA,ZBC_CODPRO, ZBC_SERIAL
-							FROM %Table:ZBC% ZBC
-							WHERE
-							ZBC.ZBC_CODSEP = %Exp:cCODBAR% AND
-							ZBC.ZBC_CAIXA  = %Exp:nCAIXA% AND 
-							ZBC.ZBC_CODPRO = %Exp:aProOnu[nU][3][nP][1]%  AND
-							ZBC.%NotDel%
-							ORDER BY 4
-			EndSql
-			   
-			aSql := GetLastQuery()
-   			cSql := aSql[2]
-   			MemoWrite("\queries\alpa101zbc.sql",cSql)
-			
-			dbSelectArea(cAliasZBC)						
-			While (cAliasZBC)->(!Eof()) 
-				  cSerieZbc += AllTrim((cAliasZBC)->ZBC_SERIAL)+"|"
-				  (cAliasZBC)->(dbSkip())
-				  
-			EndDo
-			dbSelectArea(cAliasZBC)
-			dbCloseArea()
-
 			&("cONU"+alltrim(str(nONU)))+="^FT22,"+alltrim(str(nPt))+"^A0N,25,24^FH\^FD"+aProOnu[nU][3][nP][4]+" ^FS"+cFL
 			nPt += 30
 			&("cONU"+alltrim(str(nONU)))+="^FT22,"+alltrim(str(nPt))+"^A0N,25,24^FH\^FDQTD: "+alltrim(str(aProOnu[nU][3][nP][3]))+" ^FS"+cFL
 			&("cONU"+alltrim(str(nONU)))+="^FT240,"+alltrim(str(nPt))+"^A0N,25,24^FH\^FDLOTE: "+aProOnu[nU][3][nP][2]+" ^FS"+cFL
 			&("cONU"+alltrim(str(nONU)))+="^FT440,"+alltrim(str(nPt))+"^A0N,25,24^FH\^FDMARCA: "+aProOnu[nU][3][nP][5]+" ^FS"+cFL
 			nPt += 30
-			//&("cONU"+alltrim(str(nONU)))+="^FT22,"+alltrim(str(nPt))+"^A0N,25,24^FH\^FDNUM SERIE: "+aProOnu[nU][3][nP][6]+" ^FS"+cFL
-			&("cONU"+alltrim(str(nONU)))+="^FT22,"+alltrim(str(nPt))+"^A0N,25,24^FH\^FDNUM SERIE: "+cSerieZbc+" ^FS"+cFL
+// Inclusão do número de série - Luiz Eduardo - Totalit - 04/12/2019
+			&("cONU"+alltrim(str(nONU)))+="^FT22,"+alltrim(str(nPt))+"^A0N,25,24^FH\^FDNUM SERIE: "+aProOnu[nU][3][nP][6]+" ^FS"+cFL
 			nPt += 30
+// Final Alteração
 			&("cONU"+alltrim(str(nONU))) +="^FO1,"+alltrim(str(nPt))+"^GB800,0,2^FS"+cFL
 			nPt += 30
 

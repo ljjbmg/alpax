@@ -20,6 +20,7 @@
 
 User Function IMPTABB1()
 
+Local NX
 Private   aTeste1   := {}
 Private   cType     := "Arquivo da tabela | *.CSV"
 Private   cPathEnt  := ""
@@ -128,6 +129,7 @@ DO While .t.
 					SB1->B1_PRV1     := ESTG001(VAL(cValor))
 					SB1->B1_AXPRMIN  := ESTG002(VAL(cValor))
 					SB1->B1_AXCUS    := ESTG003(VAL(cValor))
+					SB1->B1_AXCSV    := '1'
 					ESTG006()
 					SB1->(MsUnLock())
 				ENDIF
@@ -148,7 +150,6 @@ lRet := .T.
 FT_FUSE()
 
 Return(.T.)
-
 /*
 ÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜ
 ±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
@@ -261,7 +262,6 @@ If Alltrim(SB1->B1_MARCA) $ _cMarca
 		_nIndMar	:= Posicione("SZ2",2,xFilial("SZ2")+SB1->B1_MARCA,"SZ2->Z2_INDPRDM")
 	EndIf
 EndIf
-
 
 Do Case
 	

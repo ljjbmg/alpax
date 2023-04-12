@@ -108,14 +108,15 @@ Do While ! QR1->(Eof())
 	If SB1->(DbSeek(xFilial("SB1")+QR1->B1_COD))
 		RecLock("SB1",.f.)
 		If QR1->B1_AXCUS <> 0
+		
 			SB1->B1_PRV1    := (QR1->B1_AXCUS*_nIndice)
             SB1->B1_AXPRMIN := (QR1->B1_AXCUS*_nIndice)
-            SB1->B1_XPRV4   := (QR1->B1_AXCUS*_nIndice)
-            SB1->B1_XPRMN4  := (QR1->B1_AXCUS*_nIndice)
-            SB1->B1_XPRV7   := (QR1->B1_AXCUS*_nIndice)
-            SB1->B1_XPRMN7  := (QR1->B1_AXCUS*_nIndice)
-            SB1->B1_XPRV12  := (QR1->B1_AXCUS*_nIndice)
-            SB1->B1_XPRMN12 := (QR1->B1_AXCUS*_nIndice)
+            SB1->B1_XPRV4   := ((QR1->B1_AXCUS*_nIndice)*0.96)
+            SB1->B1_XPRMN4  := ((QR1->B1_AXCUS*_nIndice)*0.96)
+            SB1->B1_XPRV7   := ((QR1->B1_AXCUS*_nIndice)*0.93)
+            SB1->B1_XPRMN7  := ((QR1->B1_AXCUS*_nIndice)*0.93)
+            SB1->B1_XPRV12  := ((QR1->B1_AXCUS*_nIndice)*0.88)
+            SB1->B1_XPRMN12 := ((QR1->B1_AXCUS*_nIndice)*0.88)
 
 		EndIf
 		SB1->(MsUnLock())
